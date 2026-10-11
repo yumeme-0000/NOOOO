@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cozy Study Hub - 純淨真人線上自習室</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jdenticon@3.2.0/dist/jdenticon.min.js" integrity="sha384-y7G600xI1eZ6004j7G022136195540304618330740922137022133036" crossorigin="anonymous"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        .theme-transition { transition: all 0.3s ease; }
+    </style>
+</head>
+<body id="app-body" class="bg-slate-950 text-slate-100 min-h-screen flex flex-col relative overflow-x-hidden">
+
+    <!-- 頂部導覽列 -->
+    <header id="app-header" class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-6 py-4 flex justify-between items-center theme-transition">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="app.leaveRoom()">
+            <div id="user-avatar-nav" class="w-10 h-10 rounded-xl bg-slate-800/80 border-2 border-slate-700 flex items-center justify-center overflow-hidden"></div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight" id="header-title">Cozy Study Hub</h1>
+                <p class="text-xs opacity-70">零機器人・純淨真人空間</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <!-- 主題顏色選擇器 -->
+            <select id="theme-selector" onchange="app.changeTheme(this.value)" class="border text-xs rounded-xl px-3 py-2 focus:outline-none cursor-pointer theme-transition font-medium">
+                <option value="pink">🌸 可愛草莓粉 (亮色)</option>
+                <option value="yellow">☀️ 奶油檸檬黃 (亮色)</option>
+                <option value="black">🖤 黑色 (沈浸)</option>
+                <option value="blue">🌊 藍色</option>
+                <option value="green">🌿 綠色</option>
+                <option value="white">☁️ 白色</option>
+            </select>
+
+            <button onclick="app.openSettings()" class="px-4 py-2 text-sm font-bold rounded-xl transition cursor-pointer shadow-lg" id="btn-settings-style">⚙️ 個人設定</button>
+            <div id="room-controls" class="hidden flex items-center space-x-2">
+                <button onclick="app.copyInviteLink()" class="px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 text-sm font-medium rounded-xl transition cursor-pointer border border-slate-700/50">🔗 複製房間連結</button>
+                <button onclick="app.leaveRoom()" class="px-4 py-2 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white text-sm font-medium rounded-xl transition border border-rose-500/30 cursor-pointer">離開房間</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 flex flex-col">
+        <!-- 大廳視圖 -->
+        <div id="view-lobby" class="space-y-8">
+            <div id="lobby-banner" class="border rounded-3xl p-8 shadow-xl theme-transition">
+                <div class="max-w-2xl">
+                    <span id="banner-badge" class="px-3 py-1 rounded-full text-xs font-semibold">ONLINE STUDY COMMUNITY</span>
+                    <h2 class="text-3xl md:text-4xl font-extrabold mt-3 mb-4">和真正的夥伴一起，在安靜中穩步前行</h2>
+                    <p class="text-sm md:text-base mb-6 opacity-80">100% 真人專注空間。同步番茄鐘與管理 7 天讀書計畫。</p>
+                    <button onclick="app.openCreateModal()" id="btn-create-style" class="px-6 py-3 font-bold rounded-xl transition shadow-lg cursor-pointer">✨ 創建自習室</button>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-4">🚪 公開與自訂自習室大廳</h3>
+                <div id="room-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+        </div>
+
+        <!-- 房間視圖 -->
+        <div id="view-room" class="hidden flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 左側：座位區與番茄鐘 -->
+            <div class="lg:col-span-8 flex flex-col space-y-6">
+                <!-- 房間資訊與番茄鐘 -->
+                <div id="room-info-card" class="border rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 theme-transition">
+                    <div>
+                        <span id="current-room-tag" class="px-3 py-1 rounded-full text-xs font-semibold">專注衝刺室</span>
+                        <h2 id="current-room-name" class="text-2xl font-bold mt-2">載入中...</h2>
+                        <p class="text-xs opacity-70 mt-1">線上即時人數：<span id="room-online-count" class="font-bold">1</span> 人</p>
+                    </div>
+                    <!-- 番茄鐘 -->
+                    <div id="timer-box" class="border rounded-2xl p-4 flex items-center space-x-6 theme-transition">
+                        <div class="text-center">
+                            <div id="timer-display" class="text-4xl font-black font-mono">25:00</div>
+                            <div id="timer-status" class="text-xs opacity-70 mt-1">專注模式</div>
+                        </div>
+                        <div class="flex flex-col space-y-2">
+                            <button onclick="app.toggleTimer()" class="px-4 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer" id="timer-toggle-btn">開始</button>
+                            <button onclick="app.resetTimer()" class="px-4 py-1.5 bg-slate-800/20 hover:bg-slate-700/30 text-xs font-bold rounded-lg transition cursor-pointer">重設</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 座位區 -->
+                <div id="seats-card" class="border rounded-3xl p-6 flex-1 flex flex-col min-h-[360px] theme-transition">
+                    <h3 class="text-lg font-bold mb-4">🪑 自習室座位區</h3>
+                    <div id="seats-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1"></div>
+                </div>
+            </div>
+
+            <!-- 右側：7天計畫、Tasks 與聊天室 -->
+            <div class="lg:col-span-4 flex flex-col space-y-6">
+                <div id="right-panel-1" class="border rounded-3xl p-6 flex flex-col h-[500px] theme-transition">
+                    <div class="flex border-b border-slate-700/20 pb-3 mb-4 space-x-2">
+                        <button onclick="app.switchTab('tasks')" id="tab-btn-tasks" class="flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer">今日 Tasks</button>
+                        <button onclick="app.switchTab('weekly')" id="tab-btn-weekly" class="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-800/20 opacity-60 hover:opacity-100 transition cursor-pointer">7 天讀書計畫</button>
+                    </div>
+
+                    <!-- Tasks -->
+                    <div id="tab-content-tasks" class="flex-1 flex flex-col overflow-hidden">
+                        <div class="flex space-x-2 mb-4">
+                            <input type="text" id="new-task-input" placeholder="新增今日專注事項..." class="theme-input flex-1 border rounded-xl px-4 py-2 text-sm focus:outline-none theme-transition">
+                            <button onclick="app.addTask()" id="btn-add-task-style" class="px-4 py-2 text-sm font-bold rounded-xl transition cursor-pointer">新增</button>
+                        </div>
+                        <div id="tasks-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+                    </div>
+
+                    <!-- Weekly Plan -->
+                    <div id="tab-content-weekly" class="hidden flex-1 flex flex-col overflow-hidden">
+                        <div id="weekly-days-bar" class="flex overflow-x-auto space-x-1 pb-2 mb-3">
+                            <button onclick="app.selectDay(1)" class="day-btn px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0 cursor-pointer" data-day="1">Day 1</button>
+                            <button onclick="app.selectDay(2)" class="day-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800/20 opacity-60 flex-shrink-0 cursor-pointer" data-day="2">Day 2</button>
+                            <button onclick="app.selectDay(3)" class="day-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800/20 opacity-60 flex-shrink-0 cursor-pointer" data-day="3">Day 3</button>
+                            <button onclick="app.selectDay(4)" class="day-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800/20 opacity-60 flex-shrink-0 cursor-pointer" data-day="4">Day 4</button>
+                            <button onclick="app.selectDay(5)" class="day-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800/20 opacity-60 flex-shrink-0 cursor-pointer" data-day="5">Day 5</button>
+                            <button onclick="app.selectDay(6)" class="day-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800/20 opacity-60 flex-shrink-0 cursor-pointer" data-day="6">Day 6</button>
+                            <button onclick="app.selectDay(7)" class="day-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800/20 opacity-60 flex-shrink-0 cursor-pointer" data-day="7">Day 7</button>
+                        </div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span id="weekly-day-title" class="text-sm font-bold">Day 1 讀書計畫</span>
+                            <span id="weekly-progress-text" class="text-xs opacity-70">0%</span>
+                        </div>
+                        <div class="flex space-x-2 mb-3">
+                            <input type="text" id="new-weekly-input" placeholder="新增這天的讀書計畫..." class="theme-input flex-1 border rounded-xl px-3 py-1.5 text-xs focus:outline-none theme-transition">
+                            <button onclick="app.addWeeklyItem()" id="btn-add-weekly-style" class="px-3 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer">加入</button>
+                        </div>
+                        <div id="weekly-items-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+                    </div>
+                </div>
+
+                <!-- 聊天室 -->
+                <div id="right-panel-2" class="border rounded-3xl p-6 flex flex-col h-64 theme-transition">
+                    <h3 class="text-sm font-bold mb-3">💬 沈浸式聊天室</h3>
+                    <div id="chat-messages" class="flex-1 overflow-y-auto space-y-2 mb-3 text-xs pr-1"></div>
+                    <div class="flex space-x-2">
+                        <input type="text" id="chat-input" placeholder="傳送打氣訊息..." class="theme-input flex-1 border rounded-xl px-3 py-2 text-xs focus:outline-none theme-transition">
+                        <button onclick="app.sendChatMessage()" id="btn-send-chat-style" class="px-3 py-2 text-xs font-bold rounded-xl transition cursor-pointer">發送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 創建房間 Modal -->
+    <div id="modal-create" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div id="modal-create-box" class="border rounded-3xl p-6 max-w-md w-full shadow-2xl theme-transition">
+            <h3 class="text-xl font-bold mb-4">✨ 創建自訂自習室</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium opacity-70 mb-1">自習室名稱</label>
+                    <input type="text" id="input-room-name" placeholder="例如：考前衝刺讀書會" class="theme-input w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none theme-transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium opacity-70 mb-1">主題標籤</label>
+                    <input type="text" id="input-room-tag" placeholder="例如：考試衝刺 / 語言學習" class="theme-input w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none theme-transition">
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button onclick="app.closeCreateModal()" class="px-4 py-2 bg-slate-800/20 hover:bg-slate-700/30 text-sm font-medium rounded-xl transition cursor-pointer">取消</button>
+                    <button onclick="app.confirmCreateRoom()" id="btn-confirm-create-style" class="px-5 py-2 font-bold text-sm rounded-xl transition cursor-pointer">確認創建</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 個人設定 Modal -->
+    <div id="modal-settings" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div id="modal-settings-box" class="border rounded-3xl p-6 max-w-md w-full shadow-2xl theme-transition">
+            <div class="flex items-center space-x-4 mb-4 pb-4 border-b border-slate-700/20">
+                <div class="relative group cursor-pointer" onclick="document.getElementById('avatar-file-input').click()">
+                    <div id="settings-avatar-preview" class="w-16 h-16 rounded-2xl bg-slate-800/40 border-2 flex items-center justify-center overflow-hidden shadow-lg"></div>
+                    <div class="absolute inset-0 bg-slate-950/60 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-[10px] text-white font-bold">更換</div>
+                </div>
+                <input type="file" id="avatar-file-input" accept="image/*" class="hidden" onchange="app.handleAvatarUpload(event)">
+                <div>
+                    <h3 class="text-xl font-bold">⚙️ 個人檔案設定</h3>
+                    <p class="text-xs opacity-70">點擊左側圖示上傳自訂頭像！</p>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium opacity-70 mb-1">您的暱稱</label>
+                    <input type="text" id="input-user-name" oninput="app.updateSettingsPreview()" class="theme-input w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none theme-transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium opacity-70 mb-1">今日專注目標</label>
+                    <input type="text" id="input-user-goal" placeholder="例如：完成數學講義" class="theme-input w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none theme-transition">
+                </div>
+                <div class="flex justify-end space-x-3 mt-6 pb-4 border-b border-slate-700/20">
+                    <button onclick="app.closeSettings()" class="px-4 py-2 bg-slate-800/20 hover:bg-slate-700/30 text-sm font-medium rounded-xl transition cursor-pointer">取消</button>
+                    <button onclick="app.saveSettings()" id="btn-save-settings-style" class="px-5 py-2 font-bold text-sm rounded-xl transition cursor-pointer">儲存設定</button>
+                </div>
+                <div class="bg-rose-600/10 border border-rose-500/20 rounded-xl p-3">
+                    <h4 class="text-xs font-bold text-rose-500">⚠️ LocalStorage 資料管理</h4>
+                    <button onclick="app.clearStorage()" class="mt-2 text-[10px] text-rose-500 hover:text-rose-700 transition underline cursor-pointer">清空所有儲存資料並重設網頁</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 核心 JavaScript 邏輯 -->
+    <script>
+        const themes = {
+            pink: {
+                body: 'bg-rose-50 text-rose-950',
+                header: 'bg-white/80 border-rose-200/80 text-rose-950 shadow-sm',
+                banner: 'bg-gradient-to-r from-rose-100 via-pink-100 to-rose-50 border-rose-200 text-rose-950 shadow-md',
+                badge: 'bg-rose-200/80 text-rose-700',
+                btnPrimary: 'bg-rose-400 hover:bg-rose-500 text-white font-bold shadow-rose-200',
+                card: 'bg-white/90 border-rose-200/80 text-rose-950 shadow-md',
+                innerCard: 'bg-rose-50/70 border-rose-200/60',
+                input: 'bg-white border-rose-200 text-rose-950 focus:border-rose-400',
+                accentText: 'text-rose-600 font-bold',
+                tabActive: 'bg-rose-400 text-white',
+                timerBox: 'bg-rose-50/80 border-rose-200',
+                selector: 'bg-white border-rose-200 text-rose-950'
+            },
+            yellow: {
+                body: 'bg-amber-50 text-amber-950',
+                header: 'bg-white/80 border-amber-200/80 text-amber-950 shadow-sm',
+                banner: 'bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-50 border-amber-200 text-amber-950 shadow-md',
+                badge: 'bg-amber-200/80 text-amber-800',
+                btnPrimary: 'bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold shadow-amber-200',
+                card: 'bg-white/90 border-amber-200/80 text-amber-950 shadow-md',
+                innerCard: 'bg-amber-50/70 border-amber-200/60',
+                input: 'bg-white border-amber-200 text-amber-950 focus:border-amber-400',
+                accentText: 'text-amber-700 font-bold',
+                tabActive: 'bg-amber-400 text-amber-950',
+                timerBox: 'bg-amber-50/80 border-amber-200',
+                selector: 'bg-white border-amber-200 text-amber-950'
+            },
+            black: {
+                body: 'bg-slate-950 text-slate-100',
+                header: 'bg-slate-900/80 border-slate-800 text-slate-100',
+                banner: 'bg-gradient-to-r from-emerald-900/40 via-teal-900/30 to-slate-900 border-emerald-500/20 text-slate-100',
+                badge: 'bg-emerald-500/20 text-emerald-400',
+                btnPrimary: 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold',
+                card: 'bg-slate-900/70 border-slate-800/80 text-slate-100',
+                innerCard: 'bg-slate-950/70 border-slate-800/80',
+                input: 'bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500',
+                accentText: 'text-emerald-400',
+                tabActive: 'bg-emerald-500 text-slate-950',
+                timerBox: 'bg-slate-950/80 border-slate-800',
+                selector: 'bg-slate-900 border-slate-800 text-slate-200'
+            },
+            blue: {
+                body: 'bg-slate-950 text-blue-50',
+                header: 'bg-blue-950/80 border-blue-900/80 text-blue-50',
+                banner: 'bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-950 border-blue-500/30 text-blue-50',
+                badge: 'bg-blue-500/30 text-blue-200',
+                btnPrimary: 'bg-blue-500 hover:bg-blue-400 text-blue-950 font-bold',
+                card: 'bg-blue-950/50 border-blue-900/60 text-blue-50',
+                innerCard: 'bg-blue-950/80 border-blue-900/80',
+                input: 'bg-blue-950/90 border-blue-900 text-blue-50 focus:border-blue-400',
+                accentText: 'text-blue-300',
+                tabActive: 'bg-blue-500 text-blue-950',
+                timerBox: 'bg-blue-950/80 border-blue-900/80',
+                selector: 'bg-blue-950 border-blue-900 text-blue-100'
+            },
+            green: {
+                body: 'bg-emerald-950 text-emerald-50',
+                header: 'bg-emerald-900/60 border-emerald-800/60 text-emerald-50',
+                banner: 'bg-gradient-to-r from-emerald-900/60 via-teal-900/50 to-emerald-950 border-emerald-500/30 text-emerald-50',
+                badge: 'bg-emerald-500/30 text-emerald-200',
+                btnPrimary: 'bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold',
+                card: 'bg-emerald-900/40 border-emerald-800/50 text-emerald-50',
+                innerCard: 'bg-emerald-950/60 border-emerald-800/60',
+                input: 'bg-emerald-950/80 border-emerald-800 text-emerald-50 focus:border-emerald-400',
+                accentText: 'text-emerald-300',
+                tabActive: 'bg-emerald-500 text-emerald-950',
+                timerBox: 'bg-emerald-950/60 border-emerald-800/60',
+                selector: 'bg-emerald-900/80 border-emerald-800 text-emerald-100'
+            },
+            white: {
+                body: 'bg-slate-100 text-slate-800',
+                header: 'bg-white/90 border-slate-200 text-slate-900 shadow-sm',
+                banner: 'bg-gradient-to-r from-slate-200 via-slate-100 to-white border-slate-300 text-slate-900 shadow-md',
+                badge: 'bg-slate-300/70 text-slate-700',
+                btnPrimary: 'bg-slate-900 hover:bg-slate-800 text-white font-bold',
+                card: 'bg-white border-slate-200 text-slate-900 shadow-md',
+                innerCard: 'bg-slate-50 border-slate-200',
+                input: 'bg-white border-slate-300 text-slate-900 focus:border-slate-600',
+                accentText: 'text-slate-900 font-bold',
+                tabActive: 'bg-slate-900 text-white',
+                timerBox: 'bg-slate-50 border-slate-200',
+                selector: 'bg-white border-slate-300 text-slate-800'
+            }
+        };
+
+        class StudyApp {
+            constructor() {
+                this.state = JSON.parse(localStorage.getItem('cozy_study_state_v14')) || {
+                    user: { name: '專注學員', goal: '保持專注，今天完成章節複習', avatar: '' },
+                    rooms: [
+                        { id: 'room-1', name: '深度沉浸圖書館', tag: '考試衝刺', members: 1 },
+                        { id: 'room-2', name: '多益與英文特訓班', tag: '語言學習', members: 1 },
+                        { id: 'room-3', name: '程式開發與刷題', tag: '軟體工程', members: 1 }
+                    ],
+                    currentRoomId: null,
+                    tasks: [],
+                    weeklyPlan: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] },
+                    currentDay: 1,
+                    chatMessages: [],
+                    theme: 'pink'
+                };
+
+                this.tempAvatar = '';
+                this.timer = { timeLeft: 25 * 60, isRunning: false, isBreak: false, interval: null };
+                
+                this.initDefaultPlan();
+                this.applyTheme(this.state.theme || 'pink');
+                this.render();
+            }
+
+            changeTheme(themeName) {
+                this.state.theme = themeName;
+                this.save();
+                this.applyTheme(themeName);
+                this.render();
+            }
+
+            applyTheme(themeName) {
+                const t = themes[themeName] || themes.pink;
+                document.getElementById('app-body').className = `${t.body} min-h-screen flex flex-col relative overflow-x-hidden theme-transition`;
+                document.getElementById('app-header').className = `${t.header} backdrop-blur-md border-b sticky top-0 z-40 px-6 py-4 flex justify-between items-center theme-transition`;
+                document.getElementById('lobby-banner').className = `${t.banner} border rounded-3xl p-8 shadow-xl theme-transition`;
+                document.getElementById('banner-badge').className = `px-3 py-1 rounded-full text-xs font-semibold ${t.badge}`;
+                document.getElementById('btn-create-style').className = `px-6 py-3 ${t.btnPrimary} rounded-xl transition shadow-lg cursor-pointer`;
+                document.getElementById('btn-settings-style').className = `px-4 py-2 ${t.btnPrimary} text-sm font-bold rounded-xl transition cursor-pointer shadow-lg`;
+                
+                document.querySelectorAll('.theme-input').forEach(input => {
+                    input.className = `theme-input ${input.classList.contains('flex-1') ? 'flex-1' : 'w-full'} border rounded-xl ${input.classList.contains('py-2.5') ? 'py-2.5 px-4' : 'py-2 px-3'} text-sm focus:outline-none theme-transition ${t.input}`;
+                });
+
+                const btns = ['btn-add-task-style', 'btn-add-weekly-style', 'btn-send-chat-style', 'btn-confirm-create-style', 'btn-save-settings-style', 'timer-toggle-btn'];
+                btns.forEach(bId => {
+                    const el = document.getElementById(bId);
+                    if (el) el.className = `${el.className.includes('px-5') ? 'px-5' : 'px-4'} ${el.className.includes('py-1.5') ? 'py-1.5' : 'py-2'} ${t.btnPrimary} text-xs font-bold rounded-xl transition cursor-pointer`;
+                });
+
+                const roomInfo = document.getElementById('room-info-card');
+                if (roomInfo) roomInfo.className = `${t.card} border rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 theme-transition`;
+
+                const seatsCard = document.getElementById('seats-card');
+                if (seatsCard) seatsCard.className = `${t.card} border rounded-3xl p-6 flex-1 flex flex-col min-h-[360px] theme-transition`;
+
+                const r1 = document.getElementById('right-panel-1');
+                if (r1) r1.className = `${t.card} border rounded-3xl p-6 flex flex-col h-[500px] theme-transition`;
+
+                const r2 = document.getElementById('right-panel-2');
+                if (r2) r2.className = `${t.card} border rounded-3xl p-6 flex flex-col h-64 theme-transition`;
+
+                const timerBox = document.getElementById('timer-box');
+                if (timerBox) timerBox.className = `${t.timerBox} border rounded-2xl p-4 flex items-center space-x-6 theme-transition`;
+
+                const mCreate = document.getElementById('modal-create-box');
+                if (mCreate) mCreate.className = `${t.card} border rounded-3xl p-6 max-w-md w-full shadow-2xl theme-transition`;
+
+                const mSettings = document.getElementById('modal-settings-box');
+                if (mSettings) mSettings.className = `${t.card} border rounded-3xl p-6 max-w-md w-full shadow-2xl theme-transition`;
+
+                const selectEl = document.getElementById('theme-selector');
+                if (selectEl) {
+                    selectEl.className = `border text-xs rounded-xl px-3 py-2 focus:outline-none cursor-pointer theme-transition font-medium ${t.selector}`;
+                    selectEl.value = themeName;
+                }
+            }
+
+            initDefaultPlan() {
+                if (Object.values(this.state.weeklyPlan).flat().length === 0) {
+                    this.state.weeklyPlan = {
+                        1: [{ text: '核心科目觀念打底與錯題本整理', checked: false }, { text: '完成 4 個番茄鐘專注循環', checked: false }],
+                        2: [{ text: '挑戰歷屆試題與進階題型', checked: false }],
+                        3: [{ text: '心智圖架構整理', checked: false }],
+                        4: [{ text: '弱點盲點掃描與複習', checked: false }],
+                        5: [{ text: '全真模擬測驗與檢討', checked: false }],
+                        6: [{ text: '精華重點快速瀏覽', checked: false }],
+                        7: [{ text: '心態調整與實戰預備', checked: true }]
+                    };
+                }
+            }
+
+            save() {
+                localStorage.setItem('cozy_study_state_v14', JSON.stringify(this.state));
+            }
+
+            render() {
+                if (this.state.currentRoomId) {
+                    document.getElementById('view-lobby').classList.add('hidden');
+                    document.getElementById('view-room').classList.remove('hidden');
+                    document.getElementById('room-controls').classList.remove('hidden');
+                    this.renderRoomView();
+                } else {
+                    document.getElementById('view-lobby').classList.remove('hidden');
+                    document.getElementById('view-room').classList.add('hidden');
+                    document.getElementById('room-controls').classList.add('hidden');
+                    this.renderLobbyView();
+                }
+                this.renderNavAvatar();
+            }
+
+            renderNavAvatar() {
+                const navEl = document.getElementById('user-avatar-nav');
+                if (navEl) {
+                    if (this.state.user.avatar) {
+                        navEl.innerHTML = `<img src="${this.state.user.avatar}" class="w-full h-full object-cover">`;
+                    } else {
+                        navEl.innerHTML = `<svg class="w-full h-full" data-jdenticon-value="${this.state.user.name}"></svg>`;
+                        if (typeof jdenticon === 'function') jdenticon();
+                    }
+                }
+            }
+
+            renderLobbyView() {
+                const listEl = document.getElementById('room-list');
+                if (!listEl) return;
+                const t = themes[this.state.theme] || themes.pink;
+                listEl.innerHTML = this.state.rooms.map(room => `
+                    <div data-room-id="${room.id}" class="room-card border hover:opacity-90 rounded-3xl p-6 transition cursor-pointer flex flex-col justify-between shadow-lg ${t.card}">
+                        <div>
+                            <span class="px-3 py-1 bg-rose-400/20 text-rose-600 rounded-full text-xs font-semibold">${room.tag}</span>
+                            <h4 class="text-xl font-bold mt-3">${room.name}</h4>
+                        </div>
+                        <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-700/20 text-xs opacity-70">
+                            <span>線上夥伴：${room.members} 人</span>
+                            <span class="font-bold">點擊加入 ➔</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.querySelectorAll('.room-card').forEach(card => {
+                    card.onclick = () => {
+                        const id = card.getAttribute('data-room-id');
+                        this.joinRoom(id);
+                    };
+                });
+            }
+
+            renderRoomView() {
+                const room = this.state.rooms.find(r => r.id === this.state.currentRoomId) || { name: '自習室', tag: '專注' };
+                const nameEl = document.getElementById('current-room-name');
+                const tagEl = document.getElementById('current-room-tag');
+                const countEl = document.getElementById('room-online-count');
+                
+                if (nameEl) nameEl.innerText = room.name;
+                if (tagEl) tagEl.innerText = room.tag;
+                if (countEl) countEl.innerText = room.members;
+
+                const seatsEl = document.getElementById('seats-grid');
+                if (seatsEl) {
+                    const t = themes[this.state.theme] || themes.pink;
+                    const avatarHTML = this.state.user.avatar 
+                        ? `<img src="${this.state.user.avatar}" class="w-full h-full object-cover">`
+                        : `<svg class="w-full h-full" data-jdenticon-value="${this.state.user.name}"></svg>`;
+
+                    seatsEl.innerHTML = `
+                        <div class="border rounded-2xl p-4 flex flex-col justify-between shadow-md ${t.innerCard}">
+                            <div>
+                                <div class="flex items-center space-x-3 mb-3 pb-3 border-b border-slate-700/20">
+                                    <div class="w-12 h-12 rounded-xl bg-slate-800/10 border-2 border-slate-700/20 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-md">
+                                        ${avatarHTML}
+                                    </div>
+                                    <div class="flex-1 overflow-hidden">
+                                        <div class="flex items-center space-x-2">
+                                            <h4 class="text-base font-bold truncate">${this.state.user.name}</h4>
+                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>
+                                        </div>
+                                        <p class="text-xs opacity-70 mt-0.5 truncate">目標：${this.state.user.goal}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-1 pt-3 text-xs font-medium">✨ 沈浸中 🔥</div>
+                        </div>
+                    `;
+                    if (!this.state.user.avatar && typeof jdenticon === 'function') jdenticon();
+                }
+
+                this.renderTasks();
+                this.renderWeekly();
+                this.renderChat();
+            }
+
+            renderTasks() {
+                const tasksEl = document.getElementById('tasks-list');
+                if (!tasksEl) return;
+                const t = themes[this.state.theme] || themes.pink;
+                tasksEl.innerHTML = this.state.tasks.map(task => `
+                    <div class="flex items-center justify-between border rounded-xl p-3 shadow-sm ${t.innerCard}">
+                        <label class="flex items-center space-x-3 cursor-pointer flex-1 overflow-hidden pr-2">
+                            <input type="checkbox" ${task.checked ? 'checked' : ''} data-task-id="${task.id}" class="task-checkbox rounded border-slate-300">
+                            <span class="text-xs ${task.checked ? 'line-through opacity-50' : ''} truncate">${task.text}</span>
+                        </label>
+                        <button data-task-delete="${task.id}" class="task-delete-btn opacity-60 hover:opacity-100 text-xs px-2 cursor-pointer">✕</button>
+                    </div>
+                `).join('');
+
+                document.querySelectorAll('.task-checkbox').forEach(box => {
+                    box.onchange = (e) => this.toggleTask(parseInt(e.target.getAttribute('data-task-id')));
+                });
+                document.querySelectorAll('.task-delete-btn').forEach(btn => {
+                    btn.onclick = (e) => this.deleteTask(parseInt(e.target.getAttribute('data-task-delete')));
+                });
+            }
+
+            renderWeekly() {
+                const weeklyItems = this.state.weeklyPlan[this.state.currentDay] || [];
+                const weeklyEl = document.getElementById('weekly-items-list');
+                const progressEl = document.getElementById('weekly-progress-text');
+                if (!weeklyEl) return;
+
+                const completedCount = weeklyItems.filter(i => i.checked).length;
+                const totalCount = weeklyItems.length;
+                const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                if (progressEl) progressEl.innerText = `${percent}%`;
+
+                const t = themes[this.state.theme] || themes.pink;
+                weeklyEl.innerHTML = weeklyItems.map((item, idx) => `
+                    <div class="flex items-center justify-between border rounded-xl p-2.5 shadow-sm ${t.innerCard}">
+                        <label class="flex items-center space-x-2.5 cursor-pointer flex-1 overflow-hidden pr-2">
+                            <input type="checkbox" ${item.checked ? 'checked' : ''} data-weekly-idx="${idx}" class="weekly-checkbox rounded border-slate-300">
+                            <span class="text-xs ${item.checked ? 'line-through opacity-50' : ''} truncate">${item.text}</span>
+                        </label>
+                        <button data-weekly-delete="${idx}" class="weekly-delete-btn opacity-60 hover:opacity-100 text-xs px-2 cursor-pointer">✕</button>
+                    </div>
+                `).join('');
+
+                document.querySelectorAll('.weekly-checkbox').forEach(box => {
+                    box.onchange = (e) => this.toggleWeeklyItem(parseInt(e.target.getAttribute('data-weekly-idx')));
+                });
+                document.querySelectorAll('.weekly-delete-btn').forEach(btn => {
+                    btn.onclick = (e) => this.deleteWeeklyItem(parseInt(e.target.getAttribute('data-weekly-delete')));
+                });
+            }
+
+            renderChat() {
+                const chatEl = document.getElementById('chat-messages');
+                if (!chatEl) return;
+                const t = themes[this.state.theme] || themes.pink;
+                chatEl.innerHTML = this.state.chatMessages.map(msg => `
+                    <div class="border rounded-xl p-2.5 shadow-sm flex items-start space-x-2.5 ${t.innerCard}">
+                        <div class="w-6 h-6 rounded bg-slate-800/10 border border-slate-700/20 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                            ${msg.avatar ? `<img src="${msg.avatar}" class="w-full h-full object-cover">` : `<svg class="w-full h-full" data-jdenticon-value="${msg.sender}"></svg>`}
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <span class="font-bold ${t.accentText}">${msg.sender}:</span> <span class="opacity-90">${msg.text}</span>
+                        </div>
+                    </div>
+                `).join('');
+                if (!this.state.chatMessages.some(m => m.avatar) && typeof jdenticon === 'function') jdenticon();
+                chatEl.scrollTop = chatEl.scrollHeight;
+            }
+
+            openSettings() {
+                document.getElementById('input-user-name').value = this.state.user.name;
+                document.getElementById('input-user-goal').value = this.state.user.goal;
+                this.tempAvatar = this.state.user.avatar;
+                this.updateSettingsPreview();
+                const modal = document.getElementById('modal-settings');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            closeSettings() {
+                const modal = document.getElementById('modal-settings');
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+
+            saveSettings() {
+                this.state.user.name = document.getElementById('input-user-name').value.trim() || '專注學員';
+                this.state.user.goal = document.getElementById('input-user-goal').value.trim() || '保持專注';
+                this.state.user.avatar = this.tempAvatar;
+                this.closeSettings();
+                this.save();
+                this.render();
+            }
+
+            openCreateModal() {
+                const modal = document.getElementById('modal-create');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            closeCreateModal() {
+                const modal = document.getElementById('modal-create');
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }
+
+            confirmCreateRoom() {
+                const name = document.getElementById('input-room-name').value.trim();
+                const tag = document.getElementById('input-room-tag').value.trim();
+                if (!name) return alert('請輸入房間名稱');
+                const newRoom = { id: 'room-' + Date.now(), name, tag: tag || '一般專注', members: 1 };
+                this.state.rooms.push(newRoom);
+                document.getElementById('input-room-name').value = '';
+                document.getElementById('input-room-tag').value = '';
+                this.closeCreateModal();
+                this.joinRoom(newRoom.id);
+            }
+
+            handleAvatarUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.tempAvatar = e.target.result;
+                    this.updateSettingsPreview();
+                };
+                reader.readAsDataURL(file);
+            }
+
+            updateSettingsPreview() {
+                const nameInput = document.getElementById('input-user-name');
+                const name = nameInput ? nameInput.value.trim() || '專注學員' : '專注學員';
+                const previewEl = document.getElementById('settings-avatar-preview');
+                if (previewEl) {
+                    if (this.tempAvatar) {
+                        previewEl.innerHTML = `<img src="${this.tempAvatar}" class="w-full h-full object-cover">`;
+                    } else {
+                        previewEl.innerHTML = `<svg class="w-full h-full" data-jdenticon-value="${name}"></svg>`;
+                        if (typeof jdenticon === 'function') jdenticon();
+                    }
+                }
+            }
+
+            joinRoom(id) {
+                this.state.currentRoomId = id;
+                this.state.chatMessages = [];
+                this.save();
+                this.render();
+            }
+
+            leaveRoom() {
+                this.state.currentRoomId = null;
+                this.save();
+                this.render();
+            }
+
+            copyInviteLink() {
+                navigator.clipboard.writeText(window.location.href);
+                alert('已複製房間連結！');
+            }
+
+            clearStorage() {
+                if (confirm('確定清空所有資料？')) {
+                    localStorage.removeItem('cozy_study_state_v14');
+                    location.reload();
+                }
+            }
+
+            switchTab(tab) {
+                const t = themes[this.state.theme] || themes.pink;
+                if (tab === 'tasks') {
+                    document.getElementById('tab-content-tasks').classList.remove('hidden');
+                    document.getElementById('tab-content-weekly').classList.add('hidden');
+                    document.getElementById('tab-btn-tasks').className = `flex-1 py-2 text-xs font-bold rounded-xl ${t.tabActive} transition cursor-pointer`;
+                    document.getElementById('tab-btn-weekly').className = "flex-1 py-2 text-xs font-bold rounded-xl bg-slate-800/20 opacity-60 hover:opacity-100 transition cursor-pointer";
+                } else {
+                    document.getElementById('tab-content-tasks').classList.add('hidden');
+                    document.getElementById('tab-content-weekly').classList.remove('hidden');
+                    document.getElementById('tab-btn-weekly').className = `flex-1 py-2 text-xs font-bold rounded-xl ${t.tabActive} transition cursor-pointer`;
+                    document.getElementById('tab-btn-tasks').className = "flex-1 py-2 text-xs font-bold rounded-xl bg-slate-800/20 opacity-60 hover:opacity-100 transition cursor-pointer";
+                }
+            }
+
+            selectDay(day) {
+                this.state.currentDay = day;
+                const titleEl = document.getElementById('weekly-day-title');
+                if (titleEl) titleEl.innerText = `Day ${day} 讀書計畫`;
+                this.save();
+                this.renderWeekly();
+            }
+
+            addTask() {
+                const input = document.getElementById('new-task-input');
+                if (!input) return;
+                const text = input.value.trim();
+                if (!text) return;
+                this.state.tasks.push({ id: Date.now(), text, checked: false });
+                input.value = '';
+                this.save();
+                this.renderTasks();
+            }
+
+            toggleTask(id) {
+                const task = this.state.tasks.find(t => t.id === id);
+                if (task) task.checked = !task.checked;
+                this.save();
+                this.renderTasks();
+            }
+
+            deleteTask(id) {
+                this.state.tasks = this.state.tasks.filter(t => t.id !== id);
+                this.save();
+                this.renderTasks();
+            }
+
+            addWeeklyItem() {
+                const input = document.getElementById('new-weekly-input');
+                if (!input) return;
+                const text = input.value.trim();
+                if (!text) return;
+                if (!this.state.weeklyPlan[this.state.currentDay]) this.state.weeklyPlan[this.state.currentDay] = [];
+                this.state.weeklyPlan[this.state.currentDay].push({ text, checked: false });
+                input.value = '';
+                this.save();
+                this.renderWeekly();
+            }
+
+            toggleWeeklyItem(idx) {
+                const items = this.state.weeklyPlan[this.state.currentDay];
+                if (items && items[idx]) items[idx].checked = !items[idx].checked;
+                this.save();
+                this.renderWeekly();
+            }
+
+            deleteWeeklyItem(idx) {
+                this.state.weeklyPlan[this.state.currentDay].splice(idx, 1);
+                this.save();
+                this.renderWeekly();
+            }
+
+            sendChatMessage() {
+                const input = document.getElementById('chat-input');
+                if (!input) return;
+                const text = input.value.trim();
+                if (!text) return;
+                this.state.chatMessages.push({ sender: this.state.user.name, avatar: this.state.user.avatar, text, id: Date.now() });
+                input.value = '';
+                this.save();
+                this.renderChat();
+            }
+
+            toggleTimer() {
+                const toggleBtn = document.getElementById('timer-toggle-btn');
+                const statusEl = document.getElementById('timer-status');
+                const displayEl = document.getElementById('timer-display');
+
+                if (this.timer.isRunning) {
+                    clearInterval(this.timer.interval);
+                    this.timer.isRunning = false;
+                    if (toggleBtn) toggleBtn.innerText = '繼續';
+                    if (statusEl) statusEl.innerText = '暫停中';
+                } else {
+                    this.timer.isRunning = true;
+                    if (toggleBtn) toggleBtn.innerText = '暫停';
+                    if (statusEl) statusEl.innerText = this.timer.isBreak ? '休息模式' : '專注模式';
+                    this.timer.interval = setInterval(() => {
+                        if (this.timer.timeLeft > 0) {
+                            this.timer.timeLeft--;
+                            const m = Math.floor(this.timer.timeLeft / 60).toString().padStart(2, '0');
+                            const s = (this.timer.timeLeft % 60).toString().padStart(2, '0');
+                            if (displayEl) displayEl.innerText = `${m}:${s}`;
+                        } else {
+                            clearInterval(this.timer.interval);
+                            this.timer.isRunning = false;
+                            this.timer.isBreak = !this.timer.isBreak;
+                            this.timer.timeLeft = this.timer.isBreak ? 5 * 60 : 25 * 60;
+                            alert(this.timer.isBreak ? '恭喜完成專注！休息一下吧！' : '休息結束，開始專注！');
+                            if (toggleBtn) toggleBtn.innerText = '開始';
+                            this.render();
+                        }
+                    }, 1000);
+                }
+            }
+
+            resetTimer() {
+                clearInterval(this.timer.interval);
+                this.timer.isRunning = false;
+                this.timer.isBreak = false;
+                this.timer.timeLeft = 25 * 60;
+                const displayEl = document.getElementById('timer-display');
+                const statusEl = document.getElementById('timer-status');
+                const toggleBtn = document.getElementById('timer-toggle-btn');
+                if (displayEl) displayEl.innerText = '25:00';
+                if (statusEl) statusEl.innerText = '專注模式';
+                if (toggleBtn) toggleBtn.innerText = '開始';
+            }
+        }
+
+        let app;
+        window.onload = () => {
+            app = new StudyApp();
+        };
+    </script>
+</body>
+</html>
